@@ -1,0 +1,128 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Base64编码、解码算法 - 梦辽软件工作室</title>
+    <style type="text/css">
+    body,
+    table {
+        font-family: 宋体;
+        font-size: 9pt;
+    }
+    
+    input {
+        width: 200px;
+        height: 25px;
+    }
+    </style>
+</head>
+
+<body>
+    <script type="text/javascript">
+    /*  
+    Base64编码规则：  
+    1、将三个byte的数据，先后放入一个24bit的缓冲区中，先来的byte占高位；  
+    2、数据不足3byte的话，缓冲区中剩下的bit用0补足；  
+    3、然后，每次取出6个bit（因为2^6=64，即0到63），按照其值选择ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/中的字符作为编码后的输出；  
+    4、不断进行，直到全部输入数据转换完成；  
+    5、如果最后剩下两个输入数据，在编码结果后加1个=；如果最后剩下一个输入数据，编码结果后加2个=；如果没有剩下任何数据，则什么都不加，这样可以保证数据还原的正确性。  
+    注1：先对输入字符串进行单字节编码，否则，因为charCodeAt()对汉字等符号返回Unicode编码，其长度为16bit；因此，可将所有字符当做双字节处理，虽然增加了字节数量，但简化了双字节字符和单字节字符的识别  
+    注2：在JavaScript中，CJK ExtB（扩展字符平面2）中的字符均被当做两个字符，用4Byte编码，即字符"𠀀"~"𪛖"，其编码0xD840,0xDC00~0xD869~0xDED6，  
+        例：语句：alert("𪛖".charCodeAt(0).toString(16)+" "+"𪛖".charCodeAt(1).toString(16));将显示：d869 ded6  
+    */
+    function unicodeToByte(str) //将Unicode字符串转换为UCS-16编码的字节数组  
+    {
+        var result = [];
+        for (var i = 0; i < str.length; i++)
+            result.push(str.charCodeAt(i) >> 8, str.charCodeAt(i) & 0xff);
+        return result;
+    }
+
+    function byteToUnicode(arr) //将UCS-16编码的字节数组转换为Unicode字符串  
+    {
+        var result = "";
+        for (var i = 0; i < arr.length; i += 2)
+            result += String.fromCharCode((arr[i] << 8) + arr[i + 1]);
+        return result;
+    }
+    var map = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; //Base64从0到63的对应编码字符集  
+    function encodeBase64(str) {
+        var buffer = 0,
+            result = "";
+        var arr = unicodeToByte(str);
+        for (var i = 0; i < arr.length; i++) {
+            buffer = (buffer << 8) + arr[i];
+            if (i % 3 == 2) //每3个字节处理1次  
+            {
+                result += map.charAt(buffer >> 18) + map.charAt(buffer >> 12 & 0x3f) + map.charAt(buffer >> 6 & 0x3f) + map.charAt(buffer & 0x3f);
+                buffer = 0;
+            }
+        } //3的整数倍的字节已处理完成，剩余的字节仍存放于buffer中  
+        if (arr.length % 3 == 1) //剩余1个字节  
+            result += map.charAt(buffer >> 2) + map.charAt(buffer << 4 & 0x3f) + "==";
+        else if (arr.length % 3 == 2) //剩余2个字节  
+            result += map.charAt(buffer >> 10) + map.charAt(buffer >> 4 & 0x3f) + map.charAt(buffer << 2 & 0x3f) + "=";
+        return result;
+    }
+
+    function decodeBase64(str) {
+        //逆向映射数字索引和Base64编码字符集（简单Hash）  
+        var s = "var base64={";
+        for (var i = 0; i < 64; i++)
+            s += "\"" + map.charAt(i) + "\":" + i + ",";
+        s += "\"=\":0};"; //将"="字符对应的编码定义为0，免除额外的处理  
+        eval(s);
+        var buffer = 0,
+            result = [];
+        for (i = 0; i < str.length; i++) {
+            buffer = (buffer << 6) + base64[str.charAt(i)];
+            if (i % 4 == 3) //每3个Base64字符处理一次  
+            {
+                result.push(buffer >> 16, buffer >> 8 & 0xff, buffer & 0xff);
+                buffer = 0;
+            }
+        } //4的整数倍的Base64字符已处理完成，剩余的Base64字符仍存放于buffer中  
+        if (/==$/g.test(str)) //剩余2个Base64字符  
+            result.push(buffer >> 4);
+        else if (/=$/g.test(str)) //剩余3个Base64字符，不可能剩余1个Base64字符  
+            result.push(buffer >> 10, buffer >> 2 & 0xff);
+        return byteToUnicode(result);
+    }
+    </script>
+    <p>Base64编码、解码算法
+        <br />
+        <br /> 白宇 - 梦辽软件工作室 - 博讯网络有限责任公司
+        <br /> 2011.05.30
+    </p>
+    <table border="0">
+        <tr>
+            <td>输入：</td>
+            <td>Base64编码：</td>
+            <td>Base64解码：</td>
+        </tr>
+        <tr>
+            <td>
+                <textarea wrap="soft" id="input" cols="40" rows="30"></textarea>
+            </td>
+            <td>
+                <textarea wrap="soft" id="encode" cols="40" rows="30"></textarea>
+            </td>
+            <td>
+                <textarea wrap="soft" id="decode" cols="40" rows="30"></textarea>
+            </td>
+        </tr>
+        <tr>
+            <td align="center">
+                <input type="button" value="编码 →" onClick="encode.value=encodeBase64(input.value)" />
+            </td>
+            <td align="center">
+                <input type="button" value="解码 →" onClick="decode.value=decodeBase64(encode.value);" />
+            </td>
+            <td align="center">
+                <input type="button" value="校验 √" onClick="alert(input.value==decode.value?'校验正确！':'校验错误！');" />
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>
